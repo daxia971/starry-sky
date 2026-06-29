@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星空 · Starry Sky</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: 'Georgia', serif;
+      color: #fff;
+      cursor: crosshair;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0; left: 0;
+    }
+
+    /* 界面覆盖层 */
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #title {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      animation: fadeIn 3s ease forwards;
+      opacity: 0;
+    }
+
+    #title h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      letter-spacing: 0.3em;
+      font-weight: 300;
+      text-shadow: 0 0 30px rgba(150, 200, 255, 0.8), 0 0 60px rgba(100, 150, 255, 0.5);
+      background: linear-gradient(135deg, #ffffff, #aad4ff, #ffffff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #title p {
+      margin-top: 1rem;
+      font-size: clamp(0.8rem, 2vw, 1.1rem);
+      letter-spacing: 0.5em;
+      color: rgba(180, 210, 255, 0.7);
+      text-transform: uppercase;
+      -webkit-text-fill-color: initial;
+    }
+
+    #hint {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: rgba(180, 210, 255, 0.45);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    #stats {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: rgba(150, 190, 255, 0.4);
+      text-align: right;
+      line-height: 1.8;
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 2rem;
+      left: 1.5rem;
+      display: flex;
+      gap: 0.8rem;
+      pointer-events: all;
+    }
+
+    .btn {
+      padding: 0.5rem 1.2rem;
+      border: 1px solid rgba(150, 200, 255, 0.3);
+      background: rgba(20, 40, 80, 0.4);
+      color: rgba(180, 220, 255, 0.8);
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      border-color: rgba(150, 200, 255, 0.7);
+      background: rgba(40, 80, 160, 0.5);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(100, 160, 255, 0.3);
+    }
+
+    /* 点击涟漪 */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(180, 220, 255, 0.6);
+      animation: rippleOut 1.2s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes rippleOut {
+      0%   { width: 0; height: 0; opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+      100% { width: 120px; height: 120px; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    @keyframes fadeIn {
+      0%   { opacity: 0; transform: translate(-50%, -48%); }
+      30%  { opacity: 0; }
+      100% { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50%       { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div id="title">
+    <h1>星 空</h1>
+    <p>Starry Sky</p>
+  </div>
+
+  <div id="stats">
+    <div>STARS: <span id="starCount">0</span></div>
+    <div>METEORS: <span id="meteorCount">0</span></div>
+    <div>FPS: <span id="fps">60</span></div>
+  </div>
+
+  <div id="controls">
+    <button class="btn" id="btnMeteor">✦ 流星雨</button>
+    <button class="btn" id="btnToggle">◎ 暂停</button>
+    <button class="btn" id="btnColor">◈ 色彩</button>
+  </div>
+
+  <div id="hint">移动鼠标 · 点击星空 · 唤醒流星</div>
+</div>
+
+<script>
+// ── Canvas setup ──────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── State ─────────────────────────────────────────────────────
+let paused   = false;
+let colorMode = 0; // 0=classic, 1=aurora, 2=golden
+const PALETTES = [
+  { bg: ['#000005','#050015','#000010'], star: () => `hsl(${200+Math.random()*60},${60+Math.random()*40}%,${80+Math.random()*20}%)` },
+  { bg: ['#000a05','#001508','#000d0a'], star: () => `hsl(${100+Math.random()*120},${70+Math.random()*30}%,${75+Math.random()*25}%)` },
+  { bg: ['#0a0500','#120800','#080300'], star: () => `hsl(${30+Math.random()*60},${80+Math.random()*20}%,${80+Math.random()*20}%)` },
+];
+
+// ── Mouse ─────────────────────────────────────────────────────
+const mouse = { x: W / 2, y: H / 2 };
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+// ── Stars ─────────────────────────────────────────────────────
+const STAR_COUNT = Math.min(Math.floor(W * H / 1800), 600);
+const stars = [];
+
+class Star {
+  constructor(x, y, quick) {
+    this.reset(x, y, quick);
+  }
+  reset(x, y, quick) {
+    this.x    = x  ?? Math.random() * W;
+    this.y    = y  ?? Math.random() * H;
+    this.r    = 0.3 + Math.random() * 2;
+    this.base = this.r;
+    this.color = PALETTES[colorMode].star();
+    this.twinkle = Math.random() * Math.PI * 2;
+    this.speed   = 0.02 + Math.random() * 0.03;
+    this.parallax = 0.1 + Math.random() * 0.4; // depth
+    this.ox = this.x; this.oy = this.y;
+    if (quick) { this.twinkle = Math.random() * Math.PI * 2; }
+  }
+  update() {
+    this.twinkle += this.speed;
+    this.r = this.base * (0.6 + 0.4 * Math.sin(this.twinkle));
+    // subtle parallax with mouse
+    const dx = (mouse.x - W / 2) / W;
+    const dy = (mouse.y - H / 2) / H;
+    this.x = this.ox + dx * this.parallax * 30;
+    this.y = this.oy + dy * this.parallax * 30;
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    // glow for larger stars
+    if (this.base > 1.2) {
+      ctx.shadowBlur  = 8;
+      ctx.shadowColor = this.color;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < STAR_COUNT; i++) stars.push(new Star());
+
+// ── Nebula clouds (static, drawn once to offscreen) ───────────
+let nebulaCanvas;
+function buildNebula() {
+  nebulaCanvas = document.createElement('canvas');
+  nebulaCanvas.width  = W;
+  nebulaCanvas.height = H;
+  const nc = nebulaCanvas.getContext('2d');
+  const pal = PALETTES[colorMode];
+  const clouds = [
+    { x: W * 0.2,  y: H * 0.3,  r: W * 0.3, color: 'rgba(50,80,180,0.035)' },
+    { x: W * 0.75, y: H * 0.6,  r: W * 0.25, color: 'rgba(80,30,140,0.03)' },
+    { x: W * 0.5,  y: H * 0.8,  r: W * 0.35, color: 'rgba(30,80,120,0.025)' },
+    { x: W * 0.85, y: H * 0.15, r: W * 0.2,  color: 'rgba(100,50,200,0.025)' },
+  ];
+  if (colorMode === 1) {
+    clouds[0].color = 'rgba(30,180,80,0.04)';
+    clouds[1].color = 'rgba(20,150,100,0.03)';
+  } else if (colorMode === 2) {
+    clouds[0].color = 'rgba(200,120,20,0.04)';
+    clouds[1].color = 'rgba(180,80,10,0.03)';
+  }
+  clouds.forEach(c => {
+    const g = nc.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+    g.addColorStop(0, c.color);
+    g.addColorStop(1, 'transparent');
+    nc.fillStyle = g;
+    nc.fillRect(0, 0, W, H);
+  });
+}
+buildNebula();
+
+// ── Meteors ───────────────────────────────────────────────────
+const meteors = [];
+
+class Meteor {
+  constructor(x, y) {
+    this.x    = x ?? Math.random() * W;
+    this.y    = y ?? Math.random() * H * 0.5;
+    const angle = (30 + Math.random() * 20) * Math.PI / 180;
+    this.speed = 8 + Math.random() * 12;
+    this.vx   = Math.cos(angle) * this.speed;
+    this.vy   = Math.sin(angle) * this.speed;
+    this.len  = 80 + Math.random() * 120;
+    this.life = 1;
+    this.decay = 0.012 + Math.random() * 0.015;
+    this.color = colorMode === 1 ? `hsl(${140+Math.random()*60},90%,85%)` :
+                 colorMode === 2 ? `hsl(${40+Math.random()*30},95%,85%)`  :
+                                    `hsl(${200+Math.random()*40},80%,90%)`;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life -= this.decay;
+  }
+  draw() {
+    const tail = { x: this.x - this.vx * (this.len / this.speed), y: this.y - this.vy * (this.len / this.speed) };
+    const g = ctx.createLinearGradient(tail.x, tail.y, this.x, this.y);
+    g.addColorStop(0, 'transparent');
+    g.addColorStop(0.7, `rgba(255,255,255,${this.life * 0.15})`);
+    g.addColorStop(1,   `rgba(255,255,255,${this.life * 0.9})`);
+    ctx.beginPath();
+    ctx.moveTo(tail.x, tail.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = this.life * 2.5;
+    ctx.shadowBlur  = 10;
+    ctx.shadowColor = this.color;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  dead() { return this.life <= 0 || this.x > W + 200 || this.y > H + 200; }
+}
+
+// auto-spawn meteors
+let nextMeteor = Date.now() + 2000 + Math.random() * 4000;
+
+// ── Shooting star burst ───────────────────────────────────────
+function spawnBurst(x, y, count = 6) {
+  for (let i = 0; i < count; i++) {
+    const m = new Meteor(x ?? Math.random() * W * 0.8, y ?? Math.random() * H * 0.4);
+    meteors.push(m);
+  }
+}
+
+// ── Background gradient ───────────────────────────────────────
+function drawBg() {
+  const pal = PALETTES[colorMode].bg;
+  const g = ctx.createRadialGradient(W/2, H*0.35, 0, W/2, H/2, Math.max(W,H) * 0.8);
+  g.addColorStop(0,   pal[0]);
+  g.addColorStop(0.5, pal[1]);
+  g.addColorStop(1,   pal[2]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ── FPS ───────────────────────────────────────────────────────
+let fps = 60, lastTime = performance.now(), frames = 0;
+const fpsEl = document.getElementById('fps');
+const starCountEl = document.getElementById('starCount');
+const meteorCountEl = document.getElementById('meteorCount');
+
+// ── Main loop ─────────────────────────────────────────────────
+function loop(ts) {
+  requestAnimationFrame(loop);
+  if (paused) return;
+
+  // fps
+  frames++;
+  if (ts - lastTime >= 1000) {
+    fps = frames;
+    frames = 0;
+    lastTime = ts;
+    fpsEl.textContent = fps;
+    starCountEl.textContent = stars.length;
+    meteorCountEl.textContent = meteors.length;
+  }
+
+  // bg + nebula
+  drawBg();
+  ctx.drawImage(nebulaCanvas, 0, 0);
+
+  // stars
+  ctx.shadowBlur = 0;
+  for (const s of stars) { s.update(); s.draw(); }
+
+  // auto meteors
+  if (Date.now() > nextMeteor) {
+    meteors.push(new Meteor());
+    nextMeteor = Date.now() + 2500 + Math.random() * 5000;
+  }
+
+  // meteors
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    meteors[i].update();
+    meteors[i].draw();
+    if (meteors[i].dead()) meteors.splice(i, 1);
+  }
+}
+requestAnimationFrame(loop);
+
+// ── Interaction ───────────────────────────────────────────────
+canvas.addEventListener('click', e => {
+  // ripple
+  const div = document.createElement('div');
+  div.className = 'ripple';
+  div.style.left = e.clientX + 'px';
+  div.style.top  = e.clientY + 'px';
+  document.getElementById('overlay').appendChild(div);
+  div.addEventListener('animationend', () => div.remove());
+
+  // spawn small meteor from click
+  const m = new Meteor(e.clientX, e.clientY);
+  m.speed = 6 + Math.random() * 8;
+  meteors.push(m);
+
+  // add a twinkle star at click
+  if (stars.length < 800) stars.push(new Star(e.clientX + (Math.random()-0.5)*20, e.clientY + (Math.random()-0.5)*20, true));
+});
+
+document.getElementById('btnMeteor').addEventListener('click', () => {
+  spawnBurst(Math.random() * W * 0.6, Math.random() * H * 0.4, 8);
+});
+
+document.getElementById('btnToggle').addEventListener('click', function() {
+  paused = !paused;
+  this.textContent = paused ? '▷ 继续' : '◎ 暂停';
+});
+
+document.getElementById('btnColor').addEventListener('click', () => {
+  colorMode = (colorMode + 1) % 3;
+  // refresh star colors
+  stars.forEach(s => s.color = PALETTES[colorMode].star());
+  buildNebula();
+  window.dispatchEvent(new Event('resize')); // re-build nebula at current size
+});
+
+window.addEventListener('resize', () => {
+  resize();
+  stars.forEach(s => { s.ox = Math.random() * W; s.oy = Math.random() * H; s.x = s.ox; s.y = s.oy; });
+  buildNebula();
+});
+
+// keyboard: space=pause, m=meteor, c=color
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space')  { document.getElementById('btnToggle').click(); e.preventDefault(); }
+  if (e.code === 'KeyM')   { document.getElementById('btnMeteor').click(); }
+  if (e.code === 'KeyC')   { document.getElementById('btnColor').click(); }
+});
+</script>
+</body>
+</html>
