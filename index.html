@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>满天星 · 变色星空</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; position: fixed; inset: 0; }
+
+  .title {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.85);
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: clamp(20px, 4vw, 28px);
+    letter-spacing: 12px;
+    text-indent: 12px;
+    white-space: nowrap;
+    font-weight: 300;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+    z-index: 10;
+    transition: text-shadow 1s;
+  }
+
+  .panel {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 14px;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+  }
+
+  .swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.3s, border-color 0.3s;
+    position: relative;
+  }
+  .swatch:hover { transform: scale(1.18); }
+  .swatch.active {
+    border-color: #fff;
+    box-shadow: 0 0 14px var(--glow);
+    transform: scale(1.12);
+  }
+  .swatch::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: 46px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    font-family: "Microsoft YaHei", sans-serif;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .swatch:hover::after { opacity: 1; }
+
+  .hint {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+    font-family: "Microsoft YaHei", sans-serif;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ---- 卡通人物 ---- */
+  :root { --accent: #e8eeff; }
+
+  .chars { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .chars svg { position: absolute; cursor: pointer; pointer-events: auto; overflow: visible; }
+
+  /* 月牙上的小猫（右上） */
+  #moonCat {
+    top: 8%;
+    right: 7%;
+    width: min(220px, 24vw);
+    animation: moonSway 7s ease-in-out infinite;
+    filter: drop-shadow(0 0 24px rgba(255, 220, 120, 0.35));
+  }
+  @keyframes moonSway {
+    0%, 100% { transform: rotate(-3deg) translateY(0); }
+    50%      { transform: rotate(3deg) translateY(-10px); }
+  }
+
+  /* 漂浮宇航员（左侧） */
+  #astronaut {
+    top: 30%;
+    left: 8%;
+    width: min(150px, 18vw);
+    animation: floaty 9s ease-in-out infinite;
+    filter: drop-shadow(0 0 16px rgba(160, 200, 255, 0.3));
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+    33%      { transform: translate(18px, -26px) rotate(4deg); }
+    66%      { transform: translate(-10px, -8px) rotate(-4deg); }
+  }
+  #astronaut.flip { animation: flip 1.2s ease-in-out; }
+  @keyframes flip {
+    0%   { transform: rotate(-8deg); }
+    100% { transform: rotate(352deg); }
+  }
+
+  /* 挂着的小星星精灵（右下偏中） */
+  #starBuddy {
+    bottom: 24%;
+    right: 26%;
+    width: min(90px, 11vw);
+    animation: dangle 5s ease-in-out infinite;
+    transform-origin: 50% -200px;
+    filter: drop-shadow(0 0 14px var(--accent));
+  }
+  @keyframes dangle {
+    0%, 100% { transform: rotate(-6deg); }
+    50%      { transform: rotate(6deg); }
+  }
+  #starBuddy.spin { animation: starSpin 0.9s ease-in-out; }
+  @keyframes starSpin {
+    0%   { transform: rotate(0) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.25); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  /* 小猫的喵气泡 */
+  .meow {
+    position: absolute;
+    color: #fff;
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 14px 14px 14px 2px;
+    padding: 4px 12px;
+    pointer-events: none;
+    z-index: 11;
+    animation: meowPop 1.6s ease-out forwards;
+  }
+  @keyframes meowPop {
+    0%   { opacity: 0; transform: translateY(6px) scale(0.6); }
+    15%  { opacity: 1; transform: translateY(0) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-14px); }
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="title">满 天 星</div>
+<div class="hint">点击下方圆点切换星空颜色 · 点击夜空许愿一颗流星 · 戳戳月亮上的小伙伴</div>
+
+<div class="chars">
+  <!-- 月牙上的小猫 -->
+  <svg id="moonCat" viewBox="0 0 220 210" xmlns="http://www.w3.org/2000/svg">
+    <!-- 月牙 -->
+    <path d="M150 15 A 88 88 0 1 0 150 185 A 70 70 0 1 1 150 15 Z" fill="#ffd97a"/>
+    <path d="M150 15 A 88 88 0 1 0 150 185 A 70 70 0 1 1 150 15 Z" fill="none" stroke="#ffeab0" stroke-width="3" opacity="0.6"/>
+    <!-- 月牙上的陨石坑 -->
+    <circle cx="68" cy="70" r="7" fill="#f2c45e" opacity="0.8"/>
+    <circle cx="55" cy="118" r="5" fill="#f2c45e" opacity="0.8"/>
+    <circle cx="80" cy="155" r="6" fill="#f2c45e" opacity="0.8"/>
+    <!-- 小猫：坐在月牙内弯上 -->
+    <g id="catBody">
+      <!-- 尾巴（垂下摆动） -->
+      <path id="catTail" d="M128 96 q 18 18 8 42 q -4 12 -16 10" fill="none" stroke="#ff9f5a" stroke-width="9" stroke-linecap="round">
+        <animate attributeName="d"
+          values="M128 96 q 18 18 8 42 q -4 12 -16 10;
+                  M128 96 q 26 14 20 40 q -2 14 -14 14;
+                  M128 96 q 18 18 8 42 q -4 12 -16 10"
+          dur="3s" repeatCount="indefinite"/>
+      </path>
+      <!-- 身体 -->
+      <ellipse cx="112" cy="78" rx="26" ry="23" fill="#ffb366"/>
+      <!-- 肚皮 -->
+      <ellipse cx="110" cy="84" rx="13" ry="11" fill="#ffe3c2"/>
+      <!-- 头 -->
+      <circle cx="108" cy="46" r="20" fill="#ffb366"/>
+      <!-- 耳朵 -->
+      <path d="M93 36 L 90 18 L 103 29 Z" fill="#ffb366"/>
+      <path d="M123 36 L 126 18 L 113 29 Z" fill="#ffb366"/>
+      <path d="M94.5 33 L 93 23 L 100 29 Z" fill="#ff8fb3"/>
+      <path d="M121.5 33 L 123 23 L 116 29 Z" fill="#ff8fb3"/>
+      <!-- 闭眼笑脸 -->
+      <path d="M99 46 q 3.5 4 7 0" stroke="#5c3a1e" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M112 46 q 3.5 4 7 0" stroke="#5c3a1e" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M105 54 q 4 3.5 8 0" stroke="#5c3a1e" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- 腮红 -->
+      <circle cx="94" cy="52" r="3.5" fill="#ff8fb3" opacity="0.65"/>
+      <circle cx="123" cy="52" r="3.5" fill="#ff8fb3" opacity="0.65"/>
+      <!-- 钓竿 + 钓着的小星星 -->
+      <path d="M126 62 L 168 36" stroke="#b07840" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M168 36 L 168 86" stroke="#ffffff" stroke-width="1.4" opacity="0.75"/>
+      <g id="fishedStar">
+        <path d="M168 86 l 4.7 9.5 10.5 1.5 -7.6 7.4 1.8 10.4 -9.4 -4.9 -9.4 4.9 1.8 -10.4 -7.6 -7.4 10.5 -1.5 Z" fill="#fff3a6" stroke="#ffd97a" stroke-width="1.5">
+          <animateTransform attributeName="transform" type="rotate"
+            values="-8 168 98; 8 168 98; -8 168 98" dur="2.4s" repeatCount="indefinite"/>
+        </path>
+      </g>
+    </g>
+  </svg>
+
+  <!-- 漂浮宇航员 -->
+  <svg id="astronaut" viewBox="0 0 150 170" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背包 -->
+    <rect x="38" y="62" width="26" height="40" rx="8" fill="#9fb4d8"/>
+    <!-- 左臂（挥手） -->
+    <g id="waveArm">
+      <path d="M62 78 Q 38 62 34 40" stroke="#e8eeff" stroke-width="13" fill="none" stroke-linecap="round">
+        <animate attributeName="d"
+          values="M62 78 Q 38 62 34 40; M62 78 Q 42 56 46 34; M62 78 Q 38 62 34 40"
+          dur="2.8s" repeatCount="indefinite"/>
+      </path>
+      <circle cx="36" cy="38" r="9" fill="#ffd97a">
+        <animate attributeName="cx" values="34;46;34" dur="2.8s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="40;34;40" dur="2.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <!-- 身体 -->
+    <rect x="52" y="60" width="52" height="62" rx="24" fill="#f4f7ff"/>
+    <!-- 胸前控制板 -->
+    <rect x="66" y="78" width="24" height="16" rx="4" fill="#9fb4d8"/>
+    <circle cx="72" cy="86" r="3" fill="#ff6b6b"/>
+    <circle cx="84" cy="86" r="3" fill="#7affc4"/>
+    <!-- 腿 -->
+    <path d="M64 118 Q 60 142 68 152" stroke="#e8eeff" stroke-width="14" fill="none" stroke-linecap="round"/>
+    <path d="M92 118 Q 98 140 88 152" stroke="#e8eeff" stroke-width="14" fill="none" stroke-linecap="round"/>
+    <!-- 右臂 -->
+    <path d="M98 76 Q 118 88 120 108" stroke="#e8eeff" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <circle cx="120" cy="110" r="9" fill="#ffd97a"/>
+    <!-- 头盔 -->
+    <circle cx="78" cy="42" r="30" fill="#f4f7ff"/>
+    <circle cx="78" cy="42" r="23" fill="#1a2440"/>
+    <!-- 面罩反光 -->
+    <path d="M62 32 q 8 -10 20 -8" stroke="#8fb8ff" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <!-- 脸 -->
+    <circle cx="71" cy="44" r="3" fill="#fff"/>
+    <circle cx="87" cy="44" r="3" fill="#fff"/>
+    <path d="M73 52 q 5 4.5 10 0" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <!-- 天线 -->
+    <path d="M78 12 L 78 4" stroke="#9fb4d8" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="78" cy="3" r="3.5" fill="#ff6b6b">
+      <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+
+  <!-- 小星星精灵 -->
+  <svg id="starBuddy" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+    <path id="buddyBody" d="M45 4 l 11.5 23.5 26 3.8 -18.8 18.3 4.4 25.8 -23.1 -12.2 -23.1 12.2 4.4 -25.8 L 7.5 31.3 l 26 -3.8 Z"
+      fill="var(--accent)" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linejoin="round"/>
+    <!-- 脸 -->
+    <circle cx="37" cy="38" r="3" fill="#2a2a3e"/>
+    <circle cx="53" cy="38" r="3" fill="#2a2a3e"/>
+    <path d="M38 48 q 7 6 14 0" stroke="#2a2a3e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="31" cy="45" r="3" fill="#ff8fb3" opacity="0.6"/>
+    <circle cx="59" cy="45" r="3" fill="#ff8fb3" opacity="0.6"/>
+  </svg>
+</div>
+<div class="panel" id="panel"></div>
+
+<script>
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  ensureStars();
+  makeBg();
+}
+window.addEventListener('resize', resize);
+// 初次只设尺寸；ensureStars/makeBg 依赖后面的 const，首个 resize() 调用放在脚本末尾
+W = canvas.width = window.innerWidth;
+H = canvas.height = window.innerHeight;
+
+// ---- 颜色主题 ----
+const THEMES = [
+  { name: '经典银白', colors: ['#ffffff', '#e8eeff', '#cfd8ff'], bgTop: '#02030f', bgBottom: '#0a1030', swatch: '#e8eeff' },
+  { name: '冰蓝',     colors: ['#7ecbff', '#a8dcff', '#4fa8ff'], bgTop: '#020814', bgBottom: '#06204a', swatch: '#5db6ff' },
+  { name: '樱花粉',   colors: ['#ffb3d9', '#ffd1e8', '#ff8cc6'], bgTop: '#120210', bgBottom: '#33102e', swatch: '#ff9ccd' },
+  { name: '鎏金',     colors: ['#ffd97a', '#ffe9b0', '#ffc84a'], bgTop: '#0d0802', bgBottom: '#2b1d06', swatch: '#ffd97a' },
+  { name: '翡翠绿',   colors: ['#7affc4', '#b0ffe0', '#3dffa8'], bgTop: '#02100a', bgBottom: '#073321', swatch: '#5fffb8' },
+  { name: '暗夜紫',   colors: ['#c9a0ff', '#e0ccff', '#a86fff'], bgTop: '#0a0214', bgBottom: '#1f0a3d', swatch: '#b88aff' },
+  { name: '彩虹',     colors: 'rainbow', bgTop: '#030308', bgBottom: '#141430', swatch: 'conic' },
+];
+
+let theme = THEMES[0];
+// 颜色过渡：记录每颗星当前色与目标色的插值进度
+let transition = 1;
+
+// ---- 星星 ----
+const stars = [];
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+function pickColor(t, star) {
+  if (t.colors === 'rainbow') {
+    return `hsl(${star.hue}, 90%, 72%)`;
+  }
+  return t.colors[star.ci % t.colors.length];
+}
+
+function makeStar() {
+  return {
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: rand(0.4, 1.9),
+    base: rand(0.25, 1),          // 基础亮度
+    speed: rand(0.5, 2.2),        // 闪烁速度
+    phase: rand(0, Math.PI * 2),  // 闪烁相位
+    ci: Math.floor(Math.random() * 3),
+    hue: Math.random() * 360,     // 彩虹模式用
+    drift: rand(0.008, 0.04),     // 缓慢漂移
+  };
+}
+
+// 按当前视口大小维持星星密度；窗口从隐藏(0x0)变可见或拉大时自动补星
+function ensureStars() {
+  const target = Math.min(420, Math.floor(W * H / 3500));
+  while (stars.length < target) stars.push(makeStar());
+  if (stars.length > target) stars.length = Math.max(target, 0);
+}
+ensureStars();
+
+// ---- 流星 ----
+const meteors = [];
+function spawnMeteor(x, y) {
+  const angle = rand(Math.PI * 0.72, Math.PI * 0.82); // 朝左下
+  meteors.push({
+    x: x !== undefined ? x : rand(W * 0.3, W * 1.1),
+    y: y !== undefined ? y : rand(-20, H * 0.3),
+    vx: Math.cos(angle) * rand(9, 15),
+    vy: Math.sin(angle) * rand(9, 15),
+    life: 1,
+    len: rand(80, 160),
+  });
+}
+
+canvas.addEventListener('click', e => spawnMeteor(e.clientX, e.clientY));
+
+// ---- 绘制 ----
+let last = performance.now();
+let bgGrad = null;
+let currentBg = { top: theme.bgTop, bottom: theme.bgBottom };
+
+function makeBg() {
+  bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, currentBg.top);
+  bgGrad.addColorStop(1, currentBg.bottom);
+}
+makeBg();
+
+function frame(now) {
+  const dt = (now - last) / 1000;
+  last = now;
+  const t = now / 1000;
+
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // 星星
+  for (const s of stars) {
+    const tw = s.base * (0.55 + 0.45 * Math.sin(t * s.speed + s.phase));
+    const color = pickColor(theme, s);
+    ctx.globalAlpha = Math.max(0.05, tw);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 大星星加光晕
+    if (s.r > 1.4) {
+      ctx.globalAlpha = tw * 0.25;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 彩虹模式下缓慢变色
+    if (theme.colors === 'rainbow') s.hue = (s.hue + dt * 18) % 360;
+
+    // 缓慢漂移
+    s.y += s.drift;
+    if (s.y > H + 4) { s.y = -4; s.x = Math.random() * W; }
+  }
+  ctx.globalAlpha = 1;
+
+  // 随机流星
+  if (Math.random() < 0.004) spawnMeteor();
+
+  // 画流星
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i];
+    m.x += m.vx; m.y += m.vy;
+    m.life -= dt * 0.9;
+    if (m.life <= 0 || m.x < -200 || m.y > H + 200) { meteors.splice(i, 1); continue; }
+
+    const headColor = theme.colors === 'rainbow' ? `hsl(${(t * 80) % 360}, 90%, 75%)` : theme.colors[0];
+    const grad = ctx.createLinearGradient(m.x, m.y, m.x - m.vx / 12 * m.len, m.y - m.vy / 12 * m.len);
+    grad.addColorStop(0, headColor);
+    grad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = grad;
+    ctx.globalAlpha = Math.min(1, m.life * 1.5);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y);
+    ctx.lineTo(m.x - m.vx / 12 * m.len, m.y - m.vy / 12 * m.len);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---- 背景色渐变过渡 ----
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function lerpHex(a, b, p) {
+  const ca = hexToRgb(a), cb = hexToRgb(b);
+  const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * p));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+let bgAnim = null;
+function switchTheme(idx) {
+  const next = THEMES[idx];
+  const fromTop = currentBg.top, fromBottom = currentBg.bottom;
+  const start = performance.now();
+  if (bgAnim) cancelAnimationFrame(bgAnim);
+
+  theme = next; // 星星颜色即时切换（闪烁本身会柔化观感）
+
+  function step(now) {
+    const p = Math.min(1, (now - start) / 900);
+    const e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    // rgb 字符串无法再 lerp，所以始终从 hex 原始值插值
+    currentBg = {
+      top: p < 1 ? lerpHex(normalizeHex(fromTop), next.bgTop, e) : next.bgTop,
+      bottom: p < 1 ? lerpHex(normalizeHex(fromBottom), next.bgBottom, e) : next.bgBottom,
+    };
+    makeBg();
+    if (p < 1) bgAnim = requestAnimationFrame(step);
+  }
+  bgAnim = requestAnimationFrame(step);
+
+  document.querySelectorAll('.swatch').forEach((el, i) => el.classList.toggle('active', i === idx));
+
+  // 小星星精灵与光晕颜色跟随主题
+  document.documentElement.style.setProperty('--accent', next.swatch === 'conic' ? '#ffffff' : next.swatch);
+}
+
+// lerpHex 只认 hex；过渡中途再切主题时 currentBg 是 rgb() 字符串，需要转回 hex
+function normalizeHex(c) {
+  if (c.startsWith('#')) return c;
+  const m = c.match(/\d+/g).map(Number);
+  return '#' + m.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// ---- 构建色板 ----
+const panel = document.getElementById('panel');
+THEMES.forEach((t, i) => {
+  const el = document.createElement('div');
+  el.className = 'swatch' + (i === 0 ? ' active' : '');
+  el.dataset.name = t.name;
+  el.style.setProperty('--glow', t.swatch === 'conic' ? '#fff' : t.swatch);
+  el.style.background = t.swatch === 'conic'
+    ? 'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)'
+    : t.swatch;
+  el.addEventListener('click', () => switchTheme(i));
+  panel.appendChild(el);
+});
+
+// ---- 卡通人物互动 ----
+const astronaut = document.getElementById('astronaut');
+astronaut.addEventListener('click', () => {
+  if (astronaut.classList.contains('flip')) return;
+  astronaut.classList.add('flip');
+  for (let i = 0; i < 3; i++) setTimeout(() => spawnMeteor(), i * 180);
+});
+astronaut.addEventListener('animationend', e => {
+  if (e.animationName === 'flip') astronaut.classList.remove('flip');
+});
+
+const moonCat = document.getElementById('moonCat');
+moonCat.addEventListener('click', e => {
+  const bubble = document.createElement('div');
+  bubble.className = 'meow';
+  bubble.textContent = ['喵~', '喵呜~', '一起看星星呀', '钓到一颗星！'][Math.floor(Math.random() * 4)];
+  bubble.style.left = (e.clientX - 20) + 'px';
+  bubble.style.top = (e.clientY - 50) + 'px';
+  document.querySelector('.chars').appendChild(bubble);
+  bubble.addEventListener('animationend', () => bubble.remove());
+});
+
+const starBuddy = document.getElementById('starBuddy');
+starBuddy.addEventListener('click', () => {
+  if (starBuddy.classList.contains('spin')) return;
+  starBuddy.classList.add('spin');
+  spawnMeteor();
+});
+starBuddy.addEventListener('animationend', e => {
+  if (e.animationName === 'starSpin') starBuddy.classList.remove('spin');
+});
+
+// ---- 初始布局 & 隐藏标签页兜底 ----
+// 隐藏标签页里加载时视口可能是 0x0 且不触发 resize 事件，可见时重算
+resize();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resize(); });
+setInterval(() => { if (W !== window.innerWidth || H !== window.innerHeight) resize(); }, 500);
+</script>
+</body>
+</html>
