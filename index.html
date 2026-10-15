@@ -164,6 +164,150 @@
     75%  { opacity: 1; }
     100% { opacity: 0; transform: translateY(-14px); }
   }
+
+  /* ---- 故事集（星空剧场） ---- */
+  .title, .hint, .panel, .story-btn { transition: opacity 0.6s; }
+  body.storying .title, body.storying .hint, body.storying .panel, body.storying .story-btn {
+    opacity: 0; pointer-events: none;
+  }
+
+  .story-btn {
+    position: fixed;
+    top: 22px;
+    right: 22px;
+    z-index: 12;
+    padding: 8px 18px;
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+  .story-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+  .story-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 14;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+  }
+  .story-modal.open { display: flex; }
+  .story-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(380px, 86vw);
+  }
+  .story-card {
+    padding: 16px 20px;
+    background: rgba(20, 24, 50, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    cursor: pointer;
+    color: #fff;
+    font-family: "Microsoft YaHei", sans-serif;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .story-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .story-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .story-card p { font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+  .story-close {
+    margin-top: 4px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    font-family: "Microsoft YaHei", sans-serif;
+    cursor: pointer;
+  }
+
+  .subtitle {
+    position: fixed;
+    bottom: 11vh;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    max-width: 80vw;
+    padding: 10px 26px;
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: clamp(15px, 2.4vw, 20px);
+    letter-spacing: 3px;
+    color: #fff;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 999px;
+    opacity: 0;
+    transition: opacity 0.5s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .subtitle.show { opacity: 1; }
+
+  .exit-btn {
+    position: fixed;
+    top: 22px;
+    right: 22px;
+    z-index: 13;
+    display: none;
+    padding: 7px 16px;
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  /* 演出中的角色：关掉待机动画，改用过渡驱动 */
+  .chars svg.acting {
+    animation: none !important;
+    transform-origin: center !important;
+  }
+
+  /* 剧场道具：平时隐藏 */
+  .prop { display: none; }
+
+  /* 台词气泡（时长由 JS 控制） */
+  .say {
+    position: fixed;
+    color: #fff;
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: clamp(13px, 2vw, 16px);
+    background: rgba(30, 34, 70, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 16px 16px 16px 3px;
+    padding: 6px 14px;
+    pointer-events: none;
+    z-index: 12;
+    white-space: nowrap;
+    animation: meowPop var(--dur, 2s) ease-out forwards;
+  }
+
+  /* 星光迸发粒子 */
+  .sparkle {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9;
+    animation: sparkleFly 1.1s ease-out forwards;
+  }
+  @keyframes sparkleFly {
+    0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.1); }
+  }
+
+  /* 月亮灯塔模式 */
+  #moonCat.lighthouse { filter: drop-shadow(0 0 60px rgba(255, 220, 120, 0.95)); }
 </style>
 </head>
 <body>
@@ -276,6 +420,57 @@
     <circle cx="31" cy="45" r="3" fill="#ff8fb3" opacity="0.6"/>
     <circle cx="59" cy="45" r="3" fill="#ff8fb3" opacity="0.6"/>
   </svg>
+
+  <!-- 道具：生日蛋糕 -->
+  <svg id="cakeProp" class="prop" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:min(110px,14vw)">
+    <ellipse cx="60" cy="108" rx="48" ry="8" fill="rgba(255,255,255,0.12)"/>
+    <rect x="20" y="78" width="80" height="28" rx="8" fill="#ffb3d9"/>
+    <rect x="30" y="56" width="60" height="26" rx="8" fill="#fff0b8"/>
+    <rect x="40" y="38" width="40" height="22" rx="7" fill="#ffb3d9"/>
+    <path d="M20 84 q 10 10 20 0 q 10 10 20 0 q 10 10 20 0 q 10 10 20 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="57" y="22" width="6" height="18" rx="3" fill="#8fb8ff"/>
+    <path d="M60 22 q -6 -8 0 -14 q 6 6 0 14" fill="#ffd97a">
+      <animate attributeName="opacity" values="1;0.55;1" dur="0.9s" repeatCount="indefinite"/>
+    </path>
+  </svg>
+
+  <!-- 道具：迷路的小流星 -->
+  <svg id="cometKid" class="prop" viewBox="0 0 140 90" xmlns="http://www.w3.org/2000/svg" style="width:min(120px,15vw)">
+    <path d="M100 45 Q 60 20 8 32 Q 56 38 70 45 Q 56 52 8 58 Q 60 70 100 45 Z" fill="#8fd4ff" opacity="0.55">
+      <animate attributeName="opacity" values="0.55;0.25;0.55" dur="1.4s" repeatCount="indefinite"/>
+    </path>
+    <circle cx="104" cy="45" r="24" fill="#bfe6ff" stroke="#fff" stroke-width="2"/>
+    <circle cx="97" cy="41" r="3" fill="#2a2a3e"/>
+    <circle cx="113" cy="41" r="3" fill="#2a2a3e"/>
+    <!-- 哭脸：嘴 + 泪珠 -->
+    <path d="M99 52 q 6 -4 12 0" stroke="#2a2a3e" stroke-width="2.4" fill="none" stroke-linecap="round" transform="rotate(180 105 51)"/>
+    <circle cx="93" cy="49" r="2.6" fill="#6db9ff">
+      <animate attributeName="cy" values="49;57;49" dur="1.6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0;1" dur="1.6s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+</div>
+
+<button class="story-btn" id="storyBtn">📖 故事集</button>
+<button class="exit-btn" id="exitStory">✕ 退出故事</button>
+<div class="subtitle" id="subtitle"></div>
+
+<div class="story-modal" id="storyModal">
+  <div class="story-list">
+    <div class="story-card" data-story="fishing">
+      <h3>🎣 小猫钓星星</h3>
+      <p>月亮上的小猫今晚钓到了一个意想不到的东西……</p>
+    </div>
+    <div class="story-card" data-story="birthday">
+      <h3>🎂 宇航员的生日</h3>
+      <p>太空里也要过生日！朋友们准备了流星烟花</p>
+    </div>
+    <div class="story-card" data-story="comet">
+      <h3>☄️ 迷路的小流星</h3>
+      <p>一颗哭鼻子的小流星找不到回家的路了</p>
+    </div>
+    <div class="story-close" id="storyClose">收起</div>
+  </div>
 </div>
 <div class="panel" id="panel"></div>
 
@@ -527,6 +722,218 @@ starBuddy.addEventListener('click', () => {
 starBuddy.addEventListener('animationend', e => {
   if (e.animationName === 'starSpin') starBuddy.classList.remove('spin');
 });
+
+// ---- 故事引擎（星空剧场） ----
+const $id = id => document.getElementById(id);
+const cast = {
+  cat: $id('moonCat'),
+  astro: $id('astronaut'),
+  star: $id('starBuddy'),
+  cake: $id('cakeProp'),
+  comet: $id('cometKid'),
+};
+const mainCast = [cast.cat, cast.astro, cast.star];
+
+let playing = false;
+let stopFns = [];       // 退出时拒绝所有未完成的等待
+const savedStyle = new Map();
+
+function wait(ms) {
+  return new Promise((res, rej) => {
+    const t = setTimeout(() => { stopFns = stopFns.filter(f => f !== stop); res(); }, ms);
+    const stop = () => { clearTimeout(t); rej(new Error('story-stopped')); };
+    stopFns.push(stop);
+  });
+}
+
+// 把角色移动到视口百分比位置（左上角基准），支持缩放/旋转/透明度
+async function move(el, xPct, yPct, dur = 1500, o = {}) {
+  el.style.transition = `left ${dur}ms ease-in-out, top ${dur}ms ease-in-out, transform ${dur}ms ease-in-out, opacity ${dur}ms ease-in-out`;
+  el.style.left = (innerWidth * xPct / 100) + 'px';
+  el.style.top = (innerHeight * yPct / 100) + 'px';
+  el.style.transform = `scale(${o.scale ?? 1}) rotate(${o.rotate ?? 0}deg)`;
+  if (o.opacity !== undefined) el.style.opacity = o.opacity;
+  await wait(dur);
+}
+
+function showProp(el, xPct, yPct, opacity = 1) {
+  el.style.display = 'block';
+  el.style.transition = 'none';
+  el.style.left = (innerWidth * xPct / 100) + 'px';
+  el.style.top = (innerHeight * yPct / 100) + 'px';
+  el.style.opacity = opacity;
+  el.classList.add('acting');
+}
+
+// 旁白字幕：显示 → 停留 → 淡出
+async function narrate(text, hold = 2400) {
+  const sub = $id('subtitle');
+  sub.textContent = text;
+  sub.classList.add('show');
+  await wait(hold);
+  sub.classList.remove('show');
+  await wait(400);
+}
+
+// 角色头顶台词气泡
+function say(el, text, dur = 2200) {
+  const r = el.getBoundingClientRect();
+  const b = document.createElement('div');
+  b.className = 'say';
+  b.style.setProperty('--dur', dur + 'ms');
+  b.textContent = text;
+  document.body.appendChild(b);
+  const bw = Math.min(text.length * 16 + 28, innerWidth * 0.8);
+  b.style.left = Math.max(8, Math.min(innerWidth - bw - 8, r.left + r.width / 2 - 20)) + 'px';
+  b.style.top = Math.max(8, r.top - 44) + 'px';
+  b.addEventListener('animationend', () => b.remove());
+}
+
+// 星光迸发
+function burst(xPct, yPct, color = '#fff3a6', n = 16) {
+  const cx = innerWidth * xPct / 100, cy = innerHeight * yPct / 100;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('div');
+    p.className = 'sparkle';
+    p.style.background = color;
+    p.style.boxShadow = `0 0 8px ${color}`;
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    const ang = Math.PI * 2 * i / n + Math.random() * 0.5;
+    const dist = 50 + Math.random() * 90;
+    p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
+    document.body.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
+function meteorShower(n = 8, gap = 220) {
+  for (let i = 0; i < n; i++) setTimeout(() => { if (playing) spawnMeteor(); }, i * gap);
+}
+
+// ---- 三个故事 ----
+const STORIES = {
+  async fishing() {
+    await narrate('夜深了，小猫坐在月牙上钓星星');
+    say(cast.cat, '今晚一定要钓到一颗大星星！'); await wait(2400);
+    await narrate('突然，鱼线猛地一沉——');
+    await move(cast.cat, 62, 6, 700, { rotate: -12 });
+    say(cast.cat, '上、上钩啦！！', 1800);
+    await move(cast.star, 64, 34, 1600, { scale: 1.35, rotate: 360 });
+    burst(68, 36, '#fff3a6');
+    say(cast.star, '放开我呀，我自己会飞！'); await wait(2400);
+    await move(cast.cat, 64, 8, 700, { rotate: 0 });
+    say(cast.cat, '对不起对不起…交个朋友吧？'); await wait(2600);
+    await move(cast.star, 68, 20, 1200, { scale: 1.1 });
+    say(cast.star, '好呀，我叫小星！'); await wait(2200);
+    burst(72, 22, '#ffd97a', 20);
+    switchTheme(3); // 鎏金
+    meteorShower(6);
+    await narrate('从此，月亮上多了一对好朋友', 2800);
+  },
+
+  async birthday() {
+    await narrate('今天是宇航员的生日');
+    await move(cast.astro, 42, 32, 1800, { rotate: -5 });
+    say(cast.astro, '太空里的生日会有人记得吗…'); await wait(2600);
+    await narrate('朋友们悄悄凑了过来——');
+    showProp(cast.cake, 44, 56, 0);
+    move(cast.cat, 56, 24, 1800).catch(() => {});
+    await move(cast.star, 30, 38, 1800, { scale: 1.15 });
+    cast.cake.style.transition = 'opacity 900ms';
+    cast.cake.style.opacity = 1;
+    await wait(1000);
+    say(cast.cat, '生日快乐！🎂'); await wait(1400);
+    say(cast.star, '生日快乐呀！'); await wait(2000);
+    say(cast.astro, '你们…呜呜，谢谢！'); await wait(2200);
+    await narrate('许个愿，吹蜡烛！');
+    burst(48, 58, '#ffd97a', 22);
+    switchTheme(6); // 彩虹
+    meteorShower(12, 160);
+    say(cast.astro, '愿望是：永远在一起！'); await wait(2600);
+    await narrate('整片星空都是你的烟花', 3000);
+  },
+
+  async comet() {
+    await narrate('星空的角落传来哭声……');
+    showProp(cast.comet, -20, 24);
+    await move(cast.comet, 14, 28, 2000);
+    say(cast.comet, '呜呜…我找不到回家的路了'); await wait(2600);
+    await move(cast.astro, 20, 44, 1600);
+    say(cast.astro, '别怕别怕，我们送你回家！'); await wait(2400);
+    await narrate('小猫把月亮点成了灯塔');
+    cast.cat.classList.add('lighthouse');
+    switchTheme(1); // 冰蓝
+    say(cast.cat, '看！往月亮这边飞～'); await wait(2200);
+    move(cast.astro, 40, 30, 2600).catch(() => {});
+    await move(cast.comet, 36, 22, 2600, { rotate: 8 });
+    say(cast.comet, '我看到家啦！'); await wait(2000);
+    await move(cast.comet, 62, 10, 1800, { scale: 0.5, opacity: 0 });
+    burst(70, 14, '#8fd4ff', 24);
+    meteorShower(5);
+    say(cast.cat, '到家了，晚安～'); await wait(2200);
+    await narrate('每颗星星，都有回家的路', 3000);
+  },
+};
+
+// ---- 剧场开关 ----
+function freezeCast() {
+  for (const el of mainCast) {
+    const r = el.getBoundingClientRect();
+    savedStyle.set(el, el.getAttribute('style') || '');
+    el.classList.add('acting');
+    el.style.left = r.left + 'px';
+    el.style.top = r.top + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  }
+}
+
+function endStory() {
+  if (!playing && !document.body.classList.contains('storying')) return;
+  playing = false;
+  stopFns.forEach(f => f());
+  stopFns = [];
+  for (const el of mainCast) {
+    el.classList.remove('acting', 'lighthouse');
+    el.setAttribute('style', savedStyle.get(el) || '');
+  }
+  for (const p of [cast.cake, cast.comet]) {
+    p.classList.remove('acting');
+    p.style.display = 'none';
+    p.removeAttribute('style');
+  }
+  document.querySelectorAll('.say, .sparkle').forEach(e => e.remove());
+  $id('subtitle').classList.remove('show');
+  $id('exitStory').style.display = 'none';
+  document.body.classList.remove('storying');
+}
+
+async function startStory(key) {
+  if (playing) return;
+  playing = true;
+  $id('storyModal').classList.remove('open');
+  document.body.classList.add('storying');
+  $id('exitStory').style.display = 'block';
+  freezeCast();
+  try {
+    await STORIES[key]();
+    await narrate('— 剧终 · 点右上角可再看一个 —', 2600);
+  } catch (e) {
+    if (e.message !== 'story-stopped') console.error(e);
+  }
+  endStory();
+}
+
+$id('storyBtn').addEventListener('click', () => $id('storyModal').classList.add('open'));
+$id('storyClose').addEventListener('click', () => $id('storyModal').classList.remove('open'));
+$id('storyModal').addEventListener('click', e => {
+  if (e.target === $id('storyModal')) $id('storyModal').classList.remove('open');
+});
+document.querySelectorAll('.story-card').forEach(card =>
+  card.addEventListener('click', () => startStory(card.dataset.story)));
+$id('exitStory').addEventListener('click', endStory);
 
 // ---- 初始布局 & 隐藏标签页兜底 ----
 // 隐藏标签页里加载时视口可能是 0x0 且不触发 resize 事件，可见时重算
